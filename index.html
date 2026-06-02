@@ -3,50 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PanneauScan - Chasse aux points</title>
+    <title>NeoScan | Cyber Quest</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #map { height: 300px; border-radius: 1rem; }
+        /* Personnalisation de la carte pour coller au thème sombre */
+        #map { 
+            height: 400px; 
+            border-radius: 1.5rem; 
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.2);
+        }
+        .leaflet-layer, .leaflet-control-zoom-in, .leaflet-control-zoom-out {
+            filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+        }
+        /* Transitions douces entre les onglets */
+        .tab-content {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Effet de lueur néon */
+        .neon-glow {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-fuchsia-500 selection:text-white">
 
-    <header class="bg-slate-800 p-4 shadow-md flex justify-between items-center">
-        <h1 class="text-xl font-bold text-emerald-400">📍 PanneauScan</h1>
-        <div class="bg-emerald-500 text-slate-900 px-4 py-1 rounded-full font-bold">
-            Score : <span id="score">0</span> pts
-        </div>
-    </header>
-
-    <main class="flex-1 p-4 max-w-md mx-auto w-full space-y-6">
-
-        <section class="bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-700 text-center space-y-4">
-            <h2 class="text-lg font-semibold">📸 Scanner un panneau</h2>
-            <p class="text-sm text-slate-400">Prenez en photo un panneau pour valider votre position et gagner 50 points.</p>
-            
-            <label class="block cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold py-3 px-6 rounded-xl transition shadow-lg">
-                <span>📷 Prendre une photo</span>
-                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
-            </label>
-
-            <div id="status" class="text-sm text-slate-300 hidden font-medium animate-pulse">
-                Analyse de l'image par Gemini... 🤖
+    <div class="flex-1 flex flex-col max-w-md mx-auto w-full bg-slate-900/50 backdrop-blur-xl border-x border-slate-800 shadow-2xl relative overflow-hidden">
+        
+        <header class="p-6 border-b border-slate-800/80 flex justify-between items-center bg-slate-900/80 sticky top-0 z-50">
+            <div>
+                <h1 class="text-2xl font-black tracking-wider bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">NEOSCAN</h1>
+                <p class="text-xs text-slate-500 font-mono">v2.0 // LIVE_SYSTEM</p>
             </div>
-        </section>
+            <div class="bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 rounded-2xl font-bold shadow-lg neon-glow border border-violet-400/30 flex items-center gap-2">
+                <span class="text-xs text-violet-200">SCORE:</span>
+                <span id="score" class="text-xl font-mono text-white">0</span>
+            </div>
+        </header>
 
-        <section class="bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-700 space-y-3">
-            <h2 class="text-lg font-semibold flex items-center gap-2">🗺️ Carte des Panneaux</h2>
-            <div id="map"></div>
-        </section>
+        <main class="flex-1 p-5 relative overflow-y-auto pb-24">
+            
+            <div id="tab-scan" class="tab-content space-y-6 opacity-100 scale-100 block">
+                <div class="relative group">
+                    <div class="absolute -inset-0.5 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-3xl blur opacity-30 group-hover:opacity-50 transition duration-1000"></div>
+                    <div class="relative bg-slate-900 p-6 rounded-3xl border border-slate-800 text-center space-y-5">
+                        <div class="w-16 h-16 bg-violet-500/10 text-violet-400 rounded-2xl flex items-center justify-center mx-auto border border-violet-500/20 shadow-inner">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 12.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM18.75 10.5h.008v.008h-.008V10.5Z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h2 class="text-xl font-bold text-white tracking-tight">Analyseur Quantique</h2>
+                            <p class="text-sm text-slate-400 mt-1">Capturez un panneau routier ou touristique pour extraire ses données et assimiler <span class="text-fuchsia-400 font-bold">+50 pts</span>.</p>
+                        </div>
+                        
+                        <label class="block cursor-pointer bg-gradient-to-r from-violet-600 via-fuchsia-600 to-fuchsia-500 hover:from-violet-500 hover:to-fuchsia-400 text-white font-extrabold py-4 px-6 rounded-2xl transition-all duration-300 transform active:scale-95 shadow-lg font-mono text-sm tracking-wider uppercase">
+                            <span>⚡ INITIALISER LE SCAN</span>
+                            <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+                        </label>
 
-    </main>
+                        <div id="status" class="hidden p-4 rounded-xl border font-medium text-sm transition-all duration-300"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-map" class="tab-content space-y-4 opacity-0 scale-95 hidden">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+                        Matrice Cartographique
+                    </h2>
+                    <span class="text-xs font-mono text-cyan-400/70 bg-cyan-500/10 px-2 py-1 rounded-md border border-cyan-500/20">GPS_READY</span>
+                </div>
+                <div class="relative">
+                    <div class="absolute -inset-0.5 bg-cyan-500 rounded-3xl blur opacity-20"></div>
+                    <div id="map" class="relative border border-slate-800"></div>
+                </div>
+            </div>
+
+        </main>
+
+        <nav class="absolute bottom-0 inset-x-0 bg-slate-950/80 backdrop-blur-xl border-t border-slate-800/80 p-4 flex justify-around items-center z-50">
+            <button id="btn-nav-scan" onclick="switchTab('scan')" class="flex flex-col items-center gap-1 py-1 px-6 rounded-xl transition-all duration-300 text-violet-400 bg-violet-500/10 font-bold">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+                    <path fill-rule="evenodd" d="M1.323 11.416a.422.422 0 0 0-.04.105C1.218 11.811 1.25 12 1.25 12s.03.189.033.279A10.094 10.094 0 0 0 12 21.75a10.09 10.09 0 0 0 10.717-9.471c.003-.09.033-.279.033-.279s-.032-.189-.033-.28a10.09 10.09 0 0 0-10.717-9.471 10.094 10.094 0 0 0-10.677 9.167ZM18 12a6 6 0 1 1-12 0 6 6 0 0 1 12 0Z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-xs font-mono tracking-tight">SCANNER</span>
+            </button>
+
+            <button id="btn-nav-map" onclick="switchTab('map')" class="flex flex-col items-center gap-1 py-1 px-6 rounded-xl transition-all duration-300 text-slate-500 hover:text-slate-300 font-medium">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-6 h-6">
+                    <path fill-rule="evenodd" d="M8.161 2.58a.75.75 0 0 1 .678.08l6 4.125a.75.75 0 0 1 .267.574v14.07a.75.75 0 0 1 font-1.12.618l-6-4.125a.75.75 0 0 1-.267-.574V2.58ZM16.5 7.923l4.839-3.327A.75.75 0 0 1 22.5 5.23v13.54a.75.75 0 0 1-.419.668l-5.581 3.044V7.923Zm-9 8.154L2.661 19.4a.75.75 0 0 1-1.161-.632V5.228a.75.75 0 0 1 .419-.668l5.581-3.044v14.562Z" clip-rule="evenodd" />
+                </svg>
+                <span class="text-xs font-mono tracking-tight">CARTOGRAPHIE</span>
+            </button>
+        </nav>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
         // --- CONFIGURATION ---
-        // Remplacez par votre clé API Gemini (Attention à ne pas la laisser publique en production)
         const GEMINI_API_KEY = "AIzaSyAUOFfuqz-f5qOXxssqmMn00bSOZgpBdc4"; 
         
         let score = 0;
@@ -54,50 +113,94 @@
         const cameraInput = document.getElementById('cameraInput');
         const statusEl = document.getElementById('status');
 
+        // --- NAVIGATION ENTRE LES ONGLETS (AVEC TRANISTIONS) ---
+        function switchTab(tabName) {
+            const scanTab = document.getElementById('tab-scan');
+            const mapTab = document.getElementById('tab-map');
+            const btnScan = document.getElementById('btn-nav-scan');
+            const btnMap = document.getElementById('btn-nav-map');
+
+            if (tabName === 'scan') {
+                // Animation de sortie de la carte
+                mapTab.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    mapTab.classList.add('hidden');
+                    scanTab.classList.remove('hidden');
+                    // Animation d'entrée du scan
+                    setTimeout(() => {
+                        scanTab.classList.remove('opacity-0', 'scale-95');
+                        scanTab.classList.add('opacity-100', 'scale-100');
+                    }, 50);
+                }, 200);
+
+                // Style boutons navigation
+                btnScan.className = "flex flex-col items-center gap-1 py-1 px-6 rounded-xl transition-all duration-300 text-violet-400 bg-violet-500/10 font-bold";
+                btnMap.className = "flex flex-col items-center gap-1 py-1 px-6 rounded-xl transition-all duration-300 text-slate-500 hover:text-slate-300 font-medium";
+            } else if (tabName === 'map') {
+                // Animation de sortie du scan
+                scanTab.classList.add('opacity-0', 'scale-95');
+                setTimeout(() => {
+                    scanTab.classList.add('hidden');
+                    mapTab.classList.remove('hidden');
+                    // Forcer Leaflet à recalculer sa taille car il était masqué
+                    map.invalidateSize();
+                    // Animation d'entrée de la carte
+                    setTimeout(() => {
+                        mapTab.classList.remove('opacity-0', 'scale-95');
+                        mapTab.classList.add('opacity-100', 'scale-100');
+                    }, 50);
+                }, 200);
+
+                // Style boutons navigation
+                btnMap.className = "flex flex-col items-center gap-1 py-1 px-6 rounded-xl transition-all duration-300 text-cyan-400 bg-cyan-500/10 font-bold";
+                btnScan.className = "flex flex-col items-center gap-1 py-1 px-6 rounded-xl transition-all duration-300 text-slate-500 hover:text-slate-300 font-medium";
+            }
+        }
+
         // --- INITIALISATION DE LA CARTE ---
-        // Centré par défaut sur la France (Ex: Annecy)
         const map = L.map('map').setView([45.8992, 6.1294], 13);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap'
         }).addTo(map);
 
-        // --- GESTION DE LA PHOTO ---
+        // --- LOGIQUE CAMERA & ANALYSE GEMINI ---
         cameraInput.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            statusEl.classList.remove('hidden');
-            statusEl.textContent = "Analyse de l'image par Gemini... 🤖";
+            // Affichage du loader stylé
+            statusEl.classList.remove('hidden', 'bg-emerald-500/10', 'text-emerald-400', 'border-emerald-500/20', 'bg-rose-500/10', 'text-rose-400', 'border-rose-500/20');
+            statusEl.className = "p-4 rounded-xl border font-mono text-xs bg-violet-500/10 text-violet-400 border-violet-500/20 animate-pulse block";
+            statusEl.innerHTML = `📡 CONNEXION ORBITALE...<br>🤖 ANALYSE DE LA MATRICE PAR GEMINI AI...`;
 
             try {
-                // Convertir l'image en Base64 pour Gemini
                 const base64Data = await toBase64(file);
                 const isPanneau = await verifierAvecGemini(base64Data);
+
+                statusEl.classList.remove('animate-pulse');
 
                 if (isPanneau) {
                     score += 50;
                     scoreEl.textContent = score;
-                    statusEl.textContent = "✅ Panneau validé ! +50 points !";
-                    statusEl.className = "text-sm text-emerald-400 font-bold";
+                    statusEl.className = "p-4 rounded-xl border font-mono text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 block";
+                    statusEl.innerHTML = `✅ RECONNAISSANCE REUSSIE !<br>⚡ STRUCTURATION BIO-MÉTRIQUE : +50 POINTS ASSIMILÉS.`;
                     
-                    // Simuler l'ajout du point sur la carte à la position de l'utilisateur
                     ajouterMarqueurSurCarte();
                 } else {
-                    statusEl.textContent = "❌ Désolé, Gemini n'a pas reconnu de panneau de signalisation.";
-                    statusEl.className = "text-sm text-rose-400 font-bold";
+                    statusEl.className = "p-4 rounded-xl border font-mono text-xs bg-rose-500/10 text-rose-400 border-rose-500/20 block";
+                    statusEl.innerHTML = `❌ ÉCHEC DE L'ANALYSE.<br>🤖 ERREUR : AUCUNE DONNÉE SIGNALÉTIQUE DÉTECTÉE SUR L'IMAGE.`;
                 }
             } catch (error) {
                 console.error(error);
-                statusEl.textContent = "⚠️ Erreur lors de l'analyse.";
-                statusEl.className = "text-sm text-amber-400 font-bold";
+                statusEl.className = "p-4 rounded-xl border font-mono text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 block";
+                statusEl.innerHTML = `⚠️ RUPTURE DE FLUX.<br>ERREUR SERVEUR : VÉRIFIEZ VOTRE CONFIGURATION API.`;
             }
         });
 
         // --- APPEL API GEMINI ---
         async function verifierAvecGemini(base64Image) {
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-            
-            const prompt = "Analyse cette image. Réponds uniquement par le mot OUI s'il s'agit d'un panneau de signalisation routière, d'un panneau d'information touristique ou de randonnée. Réponds par NON pour tout autre chose.";
+            const prompt = "Réponds uniquement par le mot OUI si l'image montre un panneau de signalisation routière, un panneau d'information touristique ou de randonnée. Réponds par NON pour tout autre chose.";
 
             const response = await fetch(url, {
                 method: 'POST',
@@ -128,19 +231,19 @@
         }
 
         function ajouterMarqueurSurCarte() {
-            // Utilise la géolocalisation du téléphone si disponible, sinon un point aléatoire proche
             navigator.geolocation.getCurrentPosition((position) => {
                 const lat = position.coords.latitude;
                 const lng = position.coords.longitude;
-                map.setView([lat, lng], 15);
+                map.setView([lat, lng], 16);
                 L.marker([lat, lng]).addTo(map)
-                    .bindPopup(`<b>Panneau trouvé !</b><br>+50 pts`).openPopup();
+                    .bindPopup(`<b class="text-slate-900">Panneau Scanné !</b><br><span class="text-violet-600 font-bold">+50 pts</span>`).openPopup();
             }, () => {
-                // Repli si géolocalisation refusée
+                // Si la géolocalisation échoue, simule une position proche d'Annecy
                 const randomLat = 45.8992 + (Math.random() - 0.5) * 0.01;
                 const randomLng = 6.1294 + (Math.random() - 0.5) * 0.01;
                 map.setView([randomLat, randomLng], 15);
-                L.marker([randomLat, randomLng]).addTo(map).bindPopup(`<b>Panneau trouvé !</b>`).openPopup();
+                L.marker([randomLat, randomLng]).addTo(map)
+                    .bindPopup(`<b class="text-slate-900">Panneau Capturé !</b>`).openPopup();
             });
         }
     </script>
