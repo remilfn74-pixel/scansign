@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PanneauScan - Chasse aux points</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        #map { height: 300px; border-radius: 1rem; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans min-h-screen flex flex-col">
+
+    <header class="bg-slate-800 p-4 shadow-md flex justify-between items-center">
+        <h1 class="text-xl font-bold text-emerald-400">📍 PanneauScan</h1>
+        <div class="bg-emerald-500 text-slate-900 px-4 py-1 rounded-full font-bold">
+            Score : <span id="score">0</span> pts
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 max-w-md mx-auto w-full space-y-6">
+
+        <section class="bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-700 text-center space-y-4">
+            <h2 class="text-lg font-semibold">📸 Scanner un panneau</h2>
+            <p class="text-sm text-slate-400">Prenez en photo un panneau pour valider votre position et gagner 50 points.</p>
+            
+            <label class="block cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-slate-900 font-bold py-3 px-6 rounded-xl transition shadow-lg">
+                <span>📷 Prendre une photo</span>
+                <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden">
+            </label>
+
+            <div id="status" class="text-sm text-slate-300 hidden font-medium animate-pulse">
+                Analyse de l'image par Gemini... 🤖
+            </div>
+        </section>
+
+        <section class="bg-slate-800 p-5 rounded-2xl shadow-lg border border-slate-700 space-y-3">
+            <h2 class="text-lg font-semibold flex items-center gap-2">🗺️ Carte des Panneaux</h2>
+            <div id="map"></div>
+        </section>
+
+    </main>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // --- CONFIGURATION ---
+        // Remplacez par votre clé API Gemini (Attention à ne pas la laisser publique en production)
+        const GEMINI_API_KEY = "VOTRE_CLE_API_GEMINI"; 
+        
+        let score = 0;
+        const scoreEl = document.getElementById('score');
+        const cameraInput = document.getElementById('cameraInput');
+        const statusEl = document.getElementById('status');
+
+        // --- INITIALISATION DE LA CARTE ---
+        // Centré par défaut sur la France (Ex: Annecy)
+        const map = L.map('map').setView([45.8992, 6.1294], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap'
+        }).addTo(map);
+
+        // --- GESTION DE LA PHOTO ---
+        cameraInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            statusEl.classList.remove('hidden');
+            statusEl.textContent = "Analyse de l'image par Gemini... 🤖";
+
+            try {
+                // Convertir l'image en Base64 pour Gemini
+                const base64Data = await toBase64(file);
+                const isPanneau = await verifierAvecGemini(base64Data);
+
+                if (isPanneau) {
+                    score += 50;
+                    scoreEl.textContent = score;
+                    statusEl.textContent = "✅ Panneau validé ! +50 points !";
+                    statusEl.className = "text-sm text-emerald-400 font-bold";
+                    
+                    // Simuler l'ajout du point sur la carte à la position de l'utilisateur
+                    ajouterMarqueurSurCarte();
+                } else {
+                    statusEl.textContent = "❌ Désolé, Gemini n'a pas reconnu de panneau de signalisation.";
+                    statusEl.className = "text-sm text-rose-400 font-bold";
+                }
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = "⚠️ Erreur lors de l'analyse.";
+                statusEl.className = "text-sm text-amber-400 font-bold";
+            }
+        });
+
+        // --- APPEL API GEMINI ---
+        async function verifierAvecGemini(base64Image) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+            
+            const prompt = "Analyse cette image. Réponds uniquement par le mot OUI s'il s'agit d'un panneau de signalisation routière, d'un panneau d'information touristique ou de randonnée. Réponds par NON pour tout autre chose.";
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{
+                        parts: [
+                            { text: prompt },
+                            { inlineData: { mimeType: "image/jpeg", data: base64Image.split(',')[1] } }
+                        ]
+                    }]
+                })
+            });
+
+            const data = await response.json();
+            const textResponse = data.candidates[0].content.parts[0].text.trim().toUpperCase();
+            return textResponse.includes("OUI");
+        }
+
+        // --- UTILS ---
+        function toBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        function ajouterMarqueurSurCarte() {
+            // Utilise la géolocalisation du téléphone si disponible, sinon un point aléatoire proche
+            navigator.geolocation.getCurrentPosition((position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                map.setView([lat, lng], 15);
+                L.marker([lat, lng]).addTo(map)
+                    .bindPopup(`<b>Panneau trouvé !</b><br>+50 pts`).openPopup();
+            }, () => {
+                // Repli si géolocalisation refusée
+                const randomLat = 45.8992 + (Math.random() - 0.5) * 0.01;
+                const randomLng = 6.1294 + (Math.random() - 0.5) * 0.01;
+                map.setView([randomLat, randomLng], 15);
+                L.marker([randomLat, randomLng]).addTo(map).bindPopup(`<b>Panneau trouvé !</b>`).openPopup();
+            });
+        }
+    </script>
+</body>
+</html>
